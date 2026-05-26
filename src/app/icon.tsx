@@ -16,11 +16,13 @@ export default function Icon() {
           background: "#2c241b",
           color: "#f6f1e8",
           fontFamily: "Georgia, 'Times New Roman', serif",
+          fontStyle: "italic",
           fontSize: 56,
           lineHeight: 1,
+          letterSpacing: "-0.04em",
         }}
       >
-        𝄞
+        C
       </div>
     ),
     size

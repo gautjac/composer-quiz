@@ -28,17 +28,19 @@ export default function AppleIcon() {
             background: "#5d3145",
           }}
         />
-        {/* Treble clef glyph */}
+        {/* Italic C — for Cadenza. */}
         <div
           style={{
             fontFamily: "Georgia, 'Times New Roman', serif",
+            fontStyle: "italic",
             fontSize: 150,
             lineHeight: 1,
-            marginTop: 6,
+            marginTop: 14,
             color: "#f6f1e8",
+            letterSpacing: "-0.04em",
           }}
         >
-          𝄞
+          C
         </div>
       </div>
     ),
