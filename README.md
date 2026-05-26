@@ -4,14 +4,14 @@ Learn the canon of Western classical music one composer at a time. Modelled on [
 
 ## Two modes
 
-- **Listen mode** — play a real recording from Wikimedia Commons. Identify the composer and their period.
+- **Listen mode** — a 30-second Apple Music preview of a canonical recording (Karajan, Bernstein, Argerich, Sequentia, Tallis Scholars, Maria Callas, …). Identify the composer and their period.
 - **Describe mode** — read a stylistic fingerprint of a composer ("His Adagietto from the Fifth Symphony became famous in Visconti's Death in Venice"). Identify the composer and their period.
 
 Each quiz is 10 questions. The reveal screen shows a bio, the period's description, and 5–7 **signature works** — the educational core. Weighted spaced repetition surfaces composers you've struggled with.
 
 ## Coverage
 
-50 composers across 10 periods, from Hildegard von Bingen to Arvo Pärt. Listen mode covers the composers with public-domain recordings on Wikimedia Commons (the historical canon and many 18th–19th c. mainstays); describe mode covers all 50, including still-copyrighted 20th-century figures like Cage, Reich, Glass, and Pärt.
+50 composers across 10 periods, from Hildegard von Bingen to Arvo Pärt. **Listen mode and describe mode both cover all 50 composers** — listen mode uses the public iTunes Search API to discover 30-second Apple Music preview clips, which means we can pull from canonical modern recordings of any composer regardless of copyright status.
 
 ## Run it
 
@@ -30,7 +30,7 @@ The audio cache (`src/data/audio.json`) is checked in. Re-run if you change `COM
 npm run build:audio
 ```
 
-The script queries the Wikimedia Commons MediaWiki API, filters for audio files matching each composer (last-name match required, MIDI rejected, 25 s ≤ duration ≤ 12 min), and picks the best result. Checkpoints after every composer; resumable if interrupted. Set `FORCE_REBUILD=1` to overwrite cached entries.
+The script queries the public iTunes Search API for each composer's signature works, filters to the Classical / Opera / Chamber genre buckets, rejects covers and 8-bit / lullaby / meditation arrangements, and scores results to favor recordings by canonical conductors and ensembles (Karajan, Bernstein, Argerich, Tallis Scholars, Sequentia, etc.). Checkpoints after every composer; resumable if interrupted. Set `FORCE_REBUILD=1` to overwrite cached entries.
 
 ## Deploy
 

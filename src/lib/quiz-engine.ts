@@ -69,6 +69,7 @@ export function buildAudioForComposer(composer: Composer): AudioRecord | null {
     composerName: composer.name,
     workTitle: cached.workTitle,
     workYear: cached.workYear,
+    artistName: cached.artistName,
     audioUrl: cached.audioUrl,
     sourcePage: cached.sourcePage,
     license: cached.license,

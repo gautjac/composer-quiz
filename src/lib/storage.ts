@@ -9,8 +9,9 @@ export interface AudioRecord {
   composerName: string;
   workTitle: string;
   workYear: number | null;
+  artistName?: string;
   audioUrl: string;
-  sourcePage: string;
+  sourcePage: string | null;
   license: string;
   // Approximate duration; nullable because not every source provides it.
   durationSeconds: number | null;

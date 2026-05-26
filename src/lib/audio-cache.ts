@@ -6,8 +6,12 @@ import audioJson from "@/data/audio.json";
 export interface CachedAudio {
   workTitle: string;
   workYear: number | null;
+  // The performer / ensemble — present when the source is an Apple Music
+  // preview, absent when the source is a Commons recording with no
+  // attributable performer.
+  artistName?: string;
   audioUrl: string;
-  sourcePage: string;
+  sourcePage: string | null;
   license: string;
   durationSeconds: number | null;
 }

@@ -301,14 +301,21 @@ function QuizPageInner() {
                       <p className="text-sm text-ink-muted italic">
                         from <span className="text-ink">{question.audio.workTitle}</span>
                       </p>
-                      <a
-                        href={question.audio.sourcePage}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-ink-muted hover:text-rubric-dark underline-offset-2 hover:underline mt-0.5 inline-block"
-                      >
-                        Wikimedia Commons &middot; {question.audio.license} →
-                      </a>
+                      {question.audio.artistName && (
+                        <p className="text-xs text-ink-muted mt-0.5">
+                          performed by <span className="text-ink-light">{question.audio.artistName}</span>
+                        </p>
+                      )}
+                      {question.audio.sourcePage && (
+                        <a
+                          href={question.audio.sourcePage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-ink-muted hover:text-rubric-dark underline-offset-2 hover:underline mt-1 inline-block"
+                        >
+                          {question.audio.license} →
+                        </a>
+                      )}
                     </div>
                   )}
                 </>

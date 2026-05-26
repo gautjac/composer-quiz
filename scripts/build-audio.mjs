@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-// Discover one Wikimedia Commons audio file per composer and bake into
-// src/data/audio.json so the live app doesn't have to do API calls at
-// quiz-load time.
+// Discover one Apple Music preview clip per composer via the public
+// iTunes Search API and bake into src/data/audio.json.
 //
 // Strategy, per composer:
-//   1. For each audioSearchTerms entry in order, search Commons file
-//      namespace, filter to audio mime types, prefer 30s–10min duration.
-//   2. Take the first acceptable hit; record its direct URL, license,
-//      duration, and source page.
-//   3. Checkpoint after every composer so an interruption doesn't lose work.
+//   1. For each signature work, search the iTunes API for the composer +
+//      work title. Filter to classical-genre results with a preview URL.
+//   2. Score candidates (prefer Karajan / Berlin Phil / well-known
+//      ensembles, prefer titles that mention the work's key terms).
+//   3. Take the top hit; record its 30-second preview URL, the
+//      performer's name, the track title, and a link to the iTunes
+//      track page.
+//   4. Checkpoint after every composer.
 //
-// Re-run any time COMPOSERS or their audioSearchTerms change. Set
-// FORCE_REBUILD=1 to ignore existing cache entries.
+// Re-run any time COMPOSERS / signatureWorks change. Set FORCE_REBUILD=1
+// to overwrite cached entries.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -20,14 +22,90 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-const USER_AGENT =
-  "CadenzaQuizBuilder/1.0 (https://example.com; contact@example.com)";
-
-const MIN_DURATION = 25; // seconds — anything shorter is probably a fragment
-const MAX_DURATION = 720; // 12 min — anything longer is too much for a quiz
-const SEARCH_LIMIT = 15;
+const USER_AGENT = "CadenzaQuizBuilder/1.0";
+const COUNTRY = "US";
+const SEARCH_LIMIT = 25;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Performers that produce high-quality canonical recordings. Hits on these
+// get a score boost. Order is not significant.
+const FAVORED_ARTISTS = [
+  "Karajan",
+  "Berlin Philharmonic",
+  "Vienna Philharmonic",
+  "Bernstein",
+  "Boulez",
+  "Solti",
+  "Furtwängler",
+  "Furtwangler",
+  "Toscanini",
+  "Klemperer",
+  "Abbado",
+  "Rattle",
+  "Gardiner",
+  "Harnoncourt",
+  "Norrington",
+  "Hogwood",
+  "Pinnock",
+  "Pollini",
+  "Argerich",
+  "Brendel",
+  "Richter",
+  "Horowitz",
+  "Rubinstein",
+  "Schiff",
+  "Perahia",
+  "Sokolov",
+  "Hahn",
+  "Mutter",
+  "Heifetz",
+  "Yo-Yo Ma",
+  "Du Pré",
+  "du Pre",
+  "Rostropovich",
+  "Fischer-Dieskau",
+  "Pavarotti",
+  "Callas",
+  "Stile Antico",
+  "Hilliard Ensemble",
+  "Tallis Scholars",
+  "Sequentia",
+  "Anonymous 4",
+  "Kronos Quartet",
+  "Emerson String Quartet",
+  "Borodin Quartet",
+  "Ensemble Intercontemporain",
+  "Cleveland Orchestra",
+  "Concertgebouw",
+  "Chicago Symphony",
+  "New York Philharmonic",
+  "London Symphony",
+  "Philharmonia",
+  "Royal Concertgebouw",
+];
+
+// Acceptable iTunes genre buckets — drop pop / 8-bit / lullaby covers etc.
+const CLASSICAL_GENRES = new Set([
+  "Classical",
+  "Classical Crossover",
+  "Opera",
+  "Vocal",
+  "Chamber Music",
+  "Choral",
+  "Orchestral",
+  "Avant-Garde",
+  "Early Music",
+]);
+
+// Anti-patterns. Tracks whose name or artist matches any of these are
+// dropped — they're almost always covers, remixes, or kitsch.
+const ANTI_PATTERNS = [
+  /\b(8[ -]?bit|chiptune|8-bit)\b/i,
+  /\b(remix|tribute|karaoke|cover|disney|music box|lullaby)\b/i,
+  /\b(meditation|relaxation|spa|baby|piano lullabies)\b/i,
+  /\b(workout|study music|focus music)\b/i,
+];
 
 // ---------- Parse COMPOSERS array out of composers.ts ----------
 
@@ -38,205 +116,171 @@ function parseComposers() {
   const body = src.slice(start, end);
 
   const composers = [];
-  // Walk { id: "...", name: "...", ... audioSearchTerms: [ ... ] }
-  const entryRe = /\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)",[\s\S]*?audioSearchTerms:\s*\[([\s\S]*?)\][\s\S]*?\},/g;
+  const entryRe = /\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)",[\s\S]*?signatureWorks:\s*\[([\s\S]*?)\][\s\S]*?audioSearchTerms:/g;
   let m;
   while ((m = entryRe.exec(body)) !== null) {
     const id = m[1];
     const name = m[2];
-    const terms = [...m[3].matchAll(/"([^"]+)"/g)].map((t) => t[1]);
-    composers.push({ id, name, audioSearchTerms: terms });
+    const worksBlock = m[3];
+    // Extract titles from { title: "...", ... } entries.
+    const titleRe = /title:\s*"((?:[^"\\]|\\.)*)"/g;
+    const titles = [];
+    let t;
+    while ((t = titleRe.exec(worksBlock)) !== null) {
+      titles.push(t[1].replace(/\\"/g, '"'));
+    }
+    composers.push({ id, name, signatureWorks: titles });
   }
   return composers;
 }
 
-// ---------- MediaWiki API helpers ----------
+// ---------- iTunes Search API helpers ----------
 
-async function api(params, attempt = 0) {
-  const url = new URL("https://commons.wikimedia.org/w/api.php");
-  url.searchParams.set("format", "json");
-  url.searchParams.set("origin", "*");
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v);
-  }
+async function searchITunes(query, attempt = 0) {
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", query);
+  url.searchParams.set("entity", "song");
+  url.searchParams.set("media", "music");
+  url.searchParams.set("country", COUNTRY);
+  url.searchParams.set("limit", String(SEARCH_LIMIT));
   try {
     const res = await fetch(url.toString(), {
       headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(15_000),
     });
     if (res.status === 429 || res.status === 503) {
       if (attempt >= 3) throw new Error(`rate-limited after retries: ${res.status}`);
-      await sleep(3000 * (attempt + 1));
-      return api(params, attempt + 1);
+      await sleep(4000 * (attempt + 1));
+      return searchITunes(query, attempt + 1);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    return data.results ?? [];
   } catch (err) {
     if (attempt >= 2) throw err;
     await sleep(1500 * (attempt + 1));
-    return api(params, attempt + 1);
+    return searchITunes(query, attempt + 1);
   }
 }
 
-async function searchFiles(query) {
-  const data = await api({
-    action: "query",
-    list: "search",
-    srnamespace: 6, // File namespace
-    srsearch: `${query} filetype:audio`,
-    srlimit: String(SEARCH_LIMIT),
-  });
-  return (data?.query?.search ?? []).map((r) => r.title);
-}
+function passesFilters(track, composerName) {
+  if (!track.previewUrl) return false;
+  if (!track.trackName || !track.artistName) return false;
 
-async function fileInfo(titles) {
-  if (titles.length === 0) return [];
-  const data = await api({
-    action: "query",
-    titles: titles.join("|"),
-    prop: "imageinfo",
-    iiprop: "url|size|mime|metadata|extmetadata",
-  });
-  const pages = data?.query?.pages ?? {};
-  return Object.values(pages)
-    .map((p) => {
-      const info = p.imageinfo?.[0];
-      if (!info) return null;
-      const meta = (info.metadata || []).reduce((acc, kv) => {
-        acc[kv.name] = kv.value;
-        return acc;
-      }, {});
-      const xmeta = info.extmetadata || {};
-      const license =
-        xmeta.LicenseShortName?.value ||
-        xmeta.License?.value ||
-        xmeta.UsageTerms?.value ||
-        "unknown";
-      const length =
-        meta.length !== undefined
-          ? Number(meta.length)
-          : meta.playtime_seconds !== undefined
-            ? Number(meta.playtime_seconds)
-            : null;
-      return {
-        title: p.title,
-        url: info.url,
-        size: info.size,
-        mime: info.mime,
-        durationSeconds: Number.isFinite(length) && length > 0 ? length : null,
-        license,
-        sourcePage: `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title)}`,
-      };
-    })
-    .filter(Boolean);
-}
+  // Genre must be classical / opera / vocal / chamber / choral / etc.
+  if (!CLASSICAL_GENRES.has(track.primaryGenreName)) return false;
 
-function passesFilters(file, composerName) {
-  // Commons sometimes tags Ogg/Opus audio as application/ogg. Accept those
-  // alongside true audio/* types, but only if the file extension is audio.
-  if (!file.mime) return false;
-  const isAudioMime = file.mime.startsWith("audio/");
-  const isOggContainer =
-    /^application\/(ogg|opus)/.test(file.mime) &&
-    /\.(ogg|oga|opus)$/i.test(file.title);
-  if (!isAudioMime && !isOggContainer) return false;
-  if (file.durationSeconds !== null) {
-    if (file.durationSeconds < MIN_DURATION) return false;
-    if (file.durationSeconds > MAX_DURATION) return false;
+  // Reject covers, 8-bit, meditation albums.
+  const hay = `${track.trackName} ${track.artistName} ${track.collectionName ?? ""}`;
+  for (const pat of ANTI_PATTERNS) {
+    if (pat.test(hay)) return false;
   }
-  // Reject clearly off-topic results (e.g. someone's birthday party named
-  // after a composer). Require the composer's last name in the file title.
+
+  // The artist OR the album OR the track name must mention the composer
+  // — otherwise it's probably some other composer's piece named similarly.
   const lastName = composerName.split(/\s+/).pop().toLowerCase();
-  if (!file.title.toLowerCase().includes(lastName)) return false;
-  // Reject spoken-word / language pronunciation files.
-  if (/pronounced|pronunciation|inleiding|introduction by|speaking|^File:[A-Za-z]{2}-/i.test(file.title)) {
+  const firstName = composerName.split(/\s+/)[0].toLowerCase();
+  const fields = [
+    track.artistName,
+    track.collectionName ?? "",
+    track.trackName,
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (!fields.includes(lastName) && !fields.includes(firstName)) {
     return false;
   }
-  // Reject MIDI files — they sound terrible. Only accept real recordings.
-  if (/\.(mid|midi)$/i.test(file.title)) return false;
+
   return true;
 }
 
-function scoreFile(file, searchTerm) {
-  // Prefer longer-but-still-in-bounds files; prefer terms appearing in title.
+function scoreTrack(track, workTitle) {
   let s = 0;
-  if (file.durationSeconds) {
-    s += Math.min(120, file.durationSeconds) / 10;
+  // Title overlap: count matching tokens.
+  const titleWords = workTitle.toLowerCase().split(/[^a-zà-ž0-9]+/).filter((w) => w.length >= 3);
+  const trackWords = track.trackName.toLowerCase();
+  for (const w of titleWords) {
+    if (trackWords.includes(w)) s += 3;
   }
-  for (const token of searchTerm.split(/\s+/)) {
-    if (token.length < 3) continue;
-    if (file.title.toLowerCase().includes(token.toLowerCase())) s += 4;
+  // Favored performers.
+  for (const a of FAVORED_ARTISTS) {
+    if (track.artistName.includes(a)) {
+      s += 6;
+      break;
+    }
   }
-  // Slight preference for ogg / opus / flac over wav (file size; quality).
-  if (/\.(ogg|opus|flac)$/i.test(file.title)) s += 1;
-  if (/\.wav$/i.test(file.title)) s -= 1;
+  // Avoid extremely short tracks (likely fragments).
+  if (track.trackTimeMillis && track.trackTimeMillis > 90_000) s += 1;
+  if (track.trackTimeMillis && track.trackTimeMillis > 240_000) s += 1;
+  // Prefer Classical genre proper over Crossover.
+  if (track.primaryGenreName === "Classical") s += 2;
   return s;
 }
 
-function cleanWorkTitle(fileTitle) {
-  // "File:Mozart - Symphony No. 40 - I. Molto allegro.ogg" → "Symphony No. 40 - I. Molto allegro"
-  return fileTitle
-    .replace(/^File:/, "")
-    .replace(/\.(ogg|opus|flac|mp3|wav)$/i, "")
-    .replace(/^[A-Za-z., ]+ - /, "")
-    .replace(/_/g, " ")
-    .trim();
-}
-
 async function findAudioForComposer(composer) {
-  // Append composer's last name as a final fallback — catches anything
-  // that the more specific search terms miss.
-  const lastName = composer.name.split(/\s+/).pop();
-  const terms = [...composer.audioSearchTerms];
-  if (!terms.some((t) => t.toLowerCase() === lastName.toLowerCase())) {
-    terms.push(lastName);
-  }
+  // Try each signature work in order; also try the composer name alone as
+  // a final fallback.
+  const queries = [
+    ...composer.signatureWorks.map((w) => `${composer.name} ${w}`),
+    composer.name,
+  ];
 
-  for (const term of terms) {
+  let best = null;
+  let bestScore = -Infinity;
+  let bestWork = null;
+
+  for (const [idx, query] of queries.entries()) {
+    const workTitle =
+      idx < composer.signatureWorks.length
+        ? composer.signatureWorks[idx]
+        : composer.signatureWorks[0] ?? composer.name;
     try {
-      console.log(`  ↻ search "${term}"`);
-      const titles = await searchFiles(term);
-      if (titles.length === 0) {
-        console.log(`    (no results)`);
+      console.log(`  ↻ "${query.slice(0, 60)}…"`);
+      const results = await searchITunes(query);
+      const candidates = results
+        .filter((t) => passesFilters(t, composer.name))
+        .map((t) => ({ track: t, score: scoreTrack(t, workTitle) }))
+        .sort((a, b) => b.score - a.score);
+      if (candidates.length === 0) {
+        console.log(`    (no candidates passed filters)`);
+        await sleep(500);
         continue;
       }
-      const infos = await fileInfo(titles);
-      const good = infos
-        .filter((f) => passesFilters(f, composer.name))
-        .map((f) => ({ ...f, _score: scoreFile(f, term) }))
-        .sort((a, b) => b._score - a._score);
-
-      if (good.length === 0) {
-        console.log(`    (none passed filters)`);
-        await sleep(400);
-        continue;
+      const top = candidates[0];
+      if (top.score > bestScore) {
+        best = top.track;
+        bestScore = top.score;
+        bestWork = workTitle;
+        console.log(
+          `    ✓ ${top.track.trackName} — ${top.track.artistName} (score ${top.score})`
+        );
+        // Strong hits stop the search early to spare the API.
+        if (top.score >= 12) break;
       }
-      const top = good[0];
-      console.log(
-        `    ✓ ${top.title} (${top.durationSeconds ?? "?"}s, ${top.license})`
-      );
-      return {
-        workTitle: cleanWorkTitle(top.title),
-        workYear: null,
-        audioUrl: top.url,
-        sourcePage: top.sourcePage,
-        license: top.license,
-        durationSeconds: top.durationSeconds,
-      };
     } catch (err) {
-      console.log(`    ✗ "${term}" failed: ${err.message}`);
-      await sleep(1200);
+      console.log(`    ✗ failed: ${err.message}`);
+      await sleep(2000);
     }
-    await sleep(600);
+    await sleep(400);
   }
-  return null;
+
+  if (!best) return null;
+  return {
+    workTitle: best.trackName,
+    workYear: null,
+    artistName: best.artistName,
+    audioUrl: best.previewUrl,
+    sourcePage: best.trackViewUrl ?? null,
+    license: "Apple Music preview (30s)",
+    durationSeconds: 30,
+  };
 }
 
 // ---------- Main pipeline ----------
 
 async function main() {
   const composers = parseComposers();
-  console.log(`Discovering audio for ${composers.length} composers…`);
+  console.log(`Discovering iTunes previews for ${composers.length} composers…`);
 
   const outPath = resolve(ROOT, "src/data/audio.json");
   mkdirSync(dirname(outPath), { recursive: true });
@@ -253,12 +297,17 @@ async function main() {
       }
     }
   } catch {
-    /* start fresh */
+    /* fresh */
   }
 
   const missing = [];
   for (const c of composers) {
-    if (!process.env.FORCE_REBUILD && out[c.id]) {
+    // Skip if we already have an iTunes-format entry (it has artistName).
+    if (
+      !process.env.FORCE_REBUILD &&
+      out[c.id] &&
+      out[c.id].artistName // distinguishes new-format entries from old Commons-only entries
+    ) {
       console.log(`\n[${c.id}] ${c.name} — cached, skipping`);
       continue;
     }
@@ -268,15 +317,15 @@ async function main() {
       out[c.id] = result;
     } else {
       missing.push(c.id);
-      console.log(`  ⚠ no audio found`);
+      console.log(`  ⚠ no preview found`);
     }
     writeFileSync(outPath, JSON.stringify(out, null, 2));
   }
 
-  console.log(`\n✔ Cached audio for ${Object.keys(out).length} composers`);
+  console.log(`\n✔ Cached previews for ${Object.keys(out).length} composers`);
   console.log(`  → ${outPath}`);
   if (missing.length > 0) {
-    console.log(`\n⚠ Composers without audio: ${missing.join(", ")}`);
+    console.log(`\n⚠ Composers without a preview: ${missing.join(", ")}`);
   }
 }
 
