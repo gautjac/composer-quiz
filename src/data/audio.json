@@ -286,5 +286,53 @@
     "sourcePage": "https://commons.wikimedia.org/wiki/File%3AJ.%20Sibelius.%20The%20tryst%20in%20Ukrainian%20(audio).ogg",
     "license": "CC BY-SA 4.0",
     "durationSeconds": 192.8029931972789
+  },
+  "hildegard": {
+    "workTitle": "O frondens",
+    "workYear": null,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/3/37/O_frondens.ogg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:O_frondens.ogg",
+    "license": "CC BY-SA 3.0",
+    "durationSeconds": 117.68
+  },
+  "rachmaninoff": {
+    "workTitle": "Prelude in C-sharp minor, Op. 3 (the composer playing)",
+    "workYear": 1892,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Sergei_Rachmaninoff_performs_Rachmaninoff%27s_Prelude_in_C_sharp_minor%2C_Op._3.ogg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Sergei_Rachmaninoff_performs_Rachmaninoff%27s_Prelude_in_C_sharp_minor,_Op._3.ogg",
+    "license": "Public domain",
+    "durationSeconds": 227.91
+  },
+  "stravinsky": {
+    "workTitle": "The Firebird — Infernal Dance",
+    "workYear": 1910,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Infernal_Dance_from_The_Firebird_by_Stravinsky.ogg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Infernal_Dance_from_The_Firebird_by_Stravinsky.ogg",
+    "license": "Public domain",
+    "durationSeconds": 255.84
+  },
+  "schoenberg": {
+    "workTitle": "String Quartet No. 2, 4th movement",
+    "workYear": 1908,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/8/85/Schoenberg_Quartet_No._2_4th_movement.OGG",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Schoenberg_Quartet_No._2_4th_movement.OGG",
+    "license": "Public domain",
+    "durationSeconds": 627.91
+  },
+  "bartok": {
+    "workTitle": "Romanian Folk Dances",
+    "workYear": 1915,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Bartok_-_Romanian_Folk_Dances.ogg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Bartok_-_Romanian_Folk_Dances.ogg",
+    "license": "CC BY-SA 2.0",
+    "durationSeconds": 127.25
+  },
+  "prokofiev": {
+    "workTitle": "March, Op. 99 (U.S. Marine Band recording)",
+    "workYear": 1943,
+    "audioUrl": "https://upload.wikimedia.org/wikipedia/commons/9/91/PROKOFIEV_March%2C_Opus_99_-_%22The_President%27s_Own%22_U.S._Marine_Band.opus",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:PROKOFIEV_March%2C_Opus_99_-_%22The_President%27s_Own%22_U.S._Marine_Band.opus",
+    "license": "Public domain",
+    "durationSeconds": 128.1
   }
 }
