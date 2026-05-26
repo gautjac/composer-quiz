@@ -1,0 +1,311 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-vellum: #f6f1e8;
+  --color-vellum-dark: #ebe2d2;
+  --color-ink: #1f1a14;
+  --color-ink-light: #443c30;
+  --color-ink-muted: #857a68;
+  --color-rubric: #5d3145;
+  --color-rubric-light: #efe1e7;
+  --color-rubric-dark: #3f1d2d;
+  --color-accent: #8c2f24;
+  --color-accent-light: #f3e1de;
+  --color-correct: #2f6b3e;
+  --color-correct-light: #e3efe2;
+  --color-wrong: #b13b29;
+  --color-wrong-light: #fae3df;
+  --color-spine: #2c241b;
+  --color-spine-accent: #4a3d2d;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-vellum);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+
+/* The audio card — looks like a concert programme. */
+.audio-card {
+  background: #fffbf3;
+  border: 1px solid var(--color-vellum-dark);
+  border-radius: 2px;
+  padding: 2.5rem 2rem;
+  position: relative;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: var(--color-ink);
+  text-align: center;
+  box-shadow:
+    0 1px 0 var(--color-vellum-dark),
+    0 2px 4px rgba(31, 26, 20, 0.08),
+    0 6px 24px rgba(31, 26, 20, 0.06);
+}
+
+.audio-card::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(93, 49, 69, 0.12);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+/* The description card — a single stylistic fingerprint. */
+.description-card {
+  background: #fffbf3;
+  border: 1px solid var(--color-vellum-dark);
+  border-radius: 2px;
+  padding: 3rem 2rem;
+  position: relative;
+  font-family: 'Georgia', 'Iowan Old Style', 'Times New Roman', serif;
+  font-size: 1.5rem;
+  line-height: 1.55;
+  color: var(--color-ink);
+  text-align: center;
+  box-shadow:
+    0 1px 0 var(--color-vellum-dark),
+    0 2px 4px rgba(31, 26, 20, 0.08),
+    0 6px 24px rgba(31, 26, 20, 0.06);
+  min-height: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.description-card::before {
+  content: "\201C";
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  font-size: 4rem;
+  color: var(--color-rubric);
+  opacity: 0.25;
+  font-family: 'Georgia', serif;
+  line-height: 1;
+}
+
+.description-card::after {
+  content: "\201D";
+  position: absolute;
+  bottom: -1rem;
+  right: 1rem;
+  font-size: 4rem;
+  color: var(--color-rubric);
+  opacity: 0.25;
+  font-family: 'Georgia', serif;
+  line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .description-card { font-size: 1.75rem; padding: 4rem 3rem; }
+}
+
+/* Custom audio player. */
+.audio-play-btn {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--color-spine);
+  color: var(--color-vellum);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: 0 4px 16px rgba(31, 26, 20, 0.18);
+}
+
+.audio-play-btn:hover { transform: scale(1.04); background: var(--color-rubric-dark); }
+.audio-play-btn:active { transform: scale(0.98); }
+.audio-play-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.audio-scrubber {
+  width: 100%;
+  height: 4px;
+  background: var(--color-vellum-dark);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.audio-scrubber-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--color-rubric);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.6; }
+}
+
+.animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+.animate-fade-in-scale { animation: fadeInScale 0.4s ease-out forwards; }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--color-vellum-dark) 25%, var(--color-vellum) 50%, var(--color-vellum-dark) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.library-card {
+  background: #fffbf3;
+  border: 1px solid var(--color-vellum-dark);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(31, 26, 20, 0.06);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.library-card:hover {
+  box-shadow: 0 4px 20px rgba(31, 26, 20, 0.12);
+  transform: translateY(-1px);
+}
+
+.choice-btn {
+  background: #fffbf3;
+  border: 2px solid var(--color-vellum-dark);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  color: var(--color-ink);
+}
+
+.choice-btn:hover:not(:disabled) {
+  border-color: var(--color-rubric);
+  background: #fff7eb;
+  transform: translateX(2px);
+}
+
+.choice-btn.correct {
+  border-color: var(--color-correct);
+  background: var(--color-correct-light);
+}
+
+.choice-btn.wrong {
+  border-color: var(--color-wrong);
+  background: var(--color-wrong-light);
+}
+
+.choice-btn:disabled { cursor: default; }
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.8s ease;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.streak-flame {
+  display: inline-block;
+  font-size: 1.4rem;
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.loading-passage {
+  background: #fffbf3;
+  border: 1px solid var(--color-vellum-dark);
+  border-radius: 2px;
+  padding: 1.75rem 2rem;
+  min-height: 12rem;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  background: #fffbf3;
+  border: 1px solid var(--color-vellum-dark);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.mode-toggle-option {
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+}
+
+.mode-toggle-option.active {
+  background: var(--color-ink);
+  color: var(--color-vellum);
+}
+
+/* Signature works list on reveal — analogous to philosophy's takeaways. */
+.works-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.works-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--color-vellum-dark);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--color-ink-light);
+}
+
+.works-list li:last-child { border-bottom: none; }
+
+.works-list .work-year {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-rubric);
+  font-size: 0.8rem;
+  width: 3.5rem;
+}
+
+.works-list .work-title {
+  flex: 1;
+  font-style: italic;
+}
+
+.works-list .work-form {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+  text-transform: lowercase;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-rubric); border-radius: 3px; }
